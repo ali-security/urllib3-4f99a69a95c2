@@ -254,6 +254,7 @@ class TestHTTPProxyManager(HTTPDummyProxyTestCase):
     # Headers listed in Retry.DEFAULT_REMOVE_HEADERS_ON_REDIRECT.
     _sensitive_headers = {
         "Authorization": "foo",
+        "Proxy-Authorization": "bar",
         "Cookie": "foo=bar",
     }
 
