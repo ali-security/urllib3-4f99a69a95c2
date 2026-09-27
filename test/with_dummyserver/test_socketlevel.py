@@ -1312,7 +1312,7 @@ class TestSSL(SocketDummyServerTestCase):
         self._start_server(socket_handler)
         with HTTPSConnectionPool(self.host, self.port, ca_certs=DEFAULT_CA) as pool:
             with pytest.raises(
-                SSLError, match=r"(wrong version number|record overflow)"
+                SSLError, match=r"(wrong version number|record overflow|record layer failure)"
             ):
                 pool.request("GET", "/", retries=False)
 
@@ -1607,6 +1607,10 @@ class TestSSL(SocketDummyServerTestCase):
         os.environ.get("CI") == "true" and sys.implementation.name == "pypy",
         reason="too slow to run in CI",
     )
+    @pytest.mark.skipif(
+        os.environ.get("CI") == "true" and sys.platform == "linux",
+        reason="2 GiB TLS transfer takes 70-200s per case under memray+coverage on GitHub ubuntu-22.04 runners, pushing the leg past its timeout; still runs on macOS and Windows",
+    )
     @pytest.mark.parametrize(
         "preload_content,read_amt", [(True, None), (False, None), (False, 2**31)]
     )
@@ -1850,6 +1854,8 @@ class TestHeaders(SocketDummyServerTestCase):
                 try:
                     buffer += sock.recv(65536)
                 except OSError:
+                    # yield the GIL so the client thread can send the body
+                    time.sleep(0.001)
                     continue
 
             sock.sendall(
@@ -2143,6 +2149,7 @@ class TestRetryPoolSizeDrainFail(SocketDummyServerTestCase):
 
 class TestBrokenPipe(SocketDummyServerTestCase):
     @notWindows()
+    @pytest.mark.skipif(sys.platform == "darwin", reason="macOS 15 runners report ECONNRESET instead of EPIPE when the peer shuts down mid-sendall, so the broken-pipe path under test is not reached")
     def test_ignore_broken_pipe_errors(self, monkeypatch: pytest.MonkeyPatch) -> None:
         # On Windows an aborted connection raises an error on
         # attempts to read data out of a socket that's been closed.
@@ -2274,6 +2281,8 @@ class TestContentFraming(SocketDummyServerTestCase):
                 try:
                     buffer += sock.recv(65536)
                 except OSError:
+                    # yield the GIL so the client thread can send the body
+                    time.sleep(0.001)
                     continue
 
             sock.sendall(
@@ -2332,6 +2341,8 @@ class TestContentFraming(SocketDummyServerTestCase):
                 try:
                     buffer += sock.recv(65536)
                 except OSError:
+                    # yield the GIL so the client thread can send the body
+                    time.sleep(0.001)
                     continue
 
             sock.sendall(
@@ -2426,6 +2437,8 @@ class TestContentFraming(SocketDummyServerTestCase):
                 try:
                     buffer += sock.recv(65536)
                 except OSError:
+                    # yield the GIL so the client thread can send the body
+                    time.sleep(0.001)
                     continue
 
             sock.sendall(

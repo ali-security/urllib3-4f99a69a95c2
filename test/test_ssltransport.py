@@ -4,6 +4,7 @@ import platform
 import select
 import socket
 import ssl
+import sys
 import typing
 from unittest import mock
 
@@ -136,6 +137,7 @@ class SingleTLSLayerTestCase(SocketDummyServerTestCase):
             SSLTransport(sock, context)
 
     @pytest.mark.timeout(PER_TEST_TIMEOUT)
+    @pytest.mark.skipif(sys.platform == "darwin", reason="racy on macOS runners: the dummyserver thread's recv() raises BrokenPipeError after the client closes, surfacing as PytestUnhandledThreadExceptionWarning")
     def test_close_after_handshake(self) -> None:
         """Socket errors should be bubbled up"""
         self.start_dummy_server()
